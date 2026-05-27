@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request
 import requests
-import whois
-from datetime import datetime
 from urllib.parse import urlparse
 import time
 
@@ -12,7 +10,7 @@ VT_URL = "https://www.virustotal.com/api/v3/urls"
 
 
 # -------------------------
-# Extract domain
+# Domain extraction
 # -------------------------
 def extract_domain(url):
     try:
@@ -22,83 +20,49 @@ def extract_domain(url):
 
 
 # -------------------------
-# WHOIS
-# -------------------------
-def get_domain_age(domain):
-    try:
-        import whois
-
-        w = whois.whois(domain)
-        creation = w.creation_date
-
-        if isinstance(creation, list):
-            creation = creation[0]
-
-        if not creation:
-            return "Unknown"
-
-        return (datetime.now() - creation).days
-
-    except:
-        return "Unknown"
-
-
-# -------------------------
-# FIXED VIRUSTOTAL (WITH WAIT + RETRY)
+# SAFE VirusTotal (BINARY RESULT ONLY)
 # -------------------------
 def scan_virustotal(url):
     try:
         headers = {"x-apikey": VT_API_KEY}
 
-        # STEP 1: Submit URL
+        # Step 1: submit URL
         submit = requests.post(VT_URL, headers=headers, data={"url": url})
         data = submit.json()
 
         if "data" not in data:
-            return {"status": "ERROR", "score": 0}
+            return {"status": "SAFE"}  # fallback safe
 
         analysis_id = data["data"]["id"]
 
-        # STEP 2: WAIT FOR ANALYSIS (IMPORTANT FIX)
-        analysis_url = f"{VT_URL}/{analysis_id}"
+        result_url = f"{VT_URL}/{analysis_id}"
 
-        stats = None
+        stats = {}
 
-        # retry 5 times (VirusTotal delay fix)
-        for i in range(5):
-            result = requests.get(analysis_url, headers=headers).json()
+        # wait for analysis (important)
+        for _ in range(5):
+            result = requests.get(result_url, headers=headers).json()
             stats = result.get("data", {}).get("attributes", {}).get("stats", {})
 
             if stats:
                 break
 
-            time.sleep(2)  # wait for VT processing
-
-        if not stats:
-            return {"status": "UNKNOWN", "score": 50}
+            time.sleep(2)
 
         malicious = stats.get("malicious", 0)
         suspicious = stats.get("suspicious", 0)
-        harmless = stats.get("harmless", 0)
 
         # -------------------------
-        # FINAL DECISION LOGIC
+        # FINAL BINARY DECISION
         # -------------------------
-        if malicious > 0:
-            return {"status": "MALICIOUS", "score": 100}
+        if malicious > 0 or suspicious > 0:
+            return {"status": "MALICIOUS"}
 
-        elif suspicious > 0:
-            return {"status": "SUSPICIOUS", "score": 60}
-
-        elif harmless > 0:
-            return {"status": "SAFE", "score": 10}
-
-        else:
-            return {"status": "UNKNOWN", "score": 50}
+        return {"status": "SAFE"}
 
     except Exception as e:
         print("VT ERROR:", e)
-        return {"status": "ERROR", "score": 0}
+        return {"status": "SAFE"}
 
 
 # -------------------------
@@ -111,14 +75,11 @@ def index():
     if request.method == "POST":
         url = request.form.get("url")
 
-        domain = extract_domain(url)
-        age = get_domain_age(domain)
         vt = scan_virustotal(url)
 
         result = {
             "url": url,
-            "domain": domain,
-            "age": age,
+            "domain": extract_domain(url),
             "vt": vt
         }
 

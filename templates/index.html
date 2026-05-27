@@ -17,21 +17,11 @@
 <div class="box">
     <p><b>URL:</b> {{ result.url }}</p>
     <p><b>Domain:</b> {{ result.domain }}</p>
-    <p><b>Domain Age:</b> {{ result.age }} days</p>
-
-    <p><b>Score:</b> {{ result.vt.score }}/100</p>
 
     {% if result.vt.status == "MALICIOUS" %}
-        <p style="color:red;font-weight:bold;">🔴 MALICIOUS</p>
-
-    {% elif result.vt.status == "SUSPICIOUS" %}
-        <p style="color:orange;font-weight:bold;">⚠ SUSPICIOUS</p>
-
-    {% elif result.vt.status == "SAFE" %}
-        <p style="color:green;font-weight:bold;">🟢 SAFE</p>
-
+        <h2 style="color:red;">🔴 MALICIOUS</h2>
     {% else %}
-        <p style="color:gray;">❓ UNKNOWN</p>
+        <h2 style="color:green;">🟢 SAFE</h2>
     {% endif %}
 </div>
 {% endif %}
