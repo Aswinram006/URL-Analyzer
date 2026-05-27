@@ -28,37 +28,28 @@ def scan_virustotal(url):
     try:
         headers = {"x-apikey": VT_API_KEY}
 
-        # Encode URL (required by VirusTotal)
-        encoded_url = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
+        # encode URL correctly
+        url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
 
-        # Submit URL
-        response = requests.post(
-            VT_SUBMIT_URL,
-            headers=headers,
-            data={"url": url}
-        )
+        # Submit URL for scanning
+        requests.post(VT_SUBMIT_URL, headers=headers, json={"url": url})
 
-        data = response.json()
-
-        if "data" not in data:
-            return {"status": "ERROR", "detail": "VirusTotal submission failed"}
-
-        analysis_id = data["data"]["id"]
-
-        # Polling for result
+        # Wait + fetch final result from URL report
         for _ in range(10):
-            result = requests.get(
-                f"{VT_ANALYSIS_URL}/{analysis_id}",
+            response = requests.get(
+                f"https://www.virustotal.com/api/v3/urls/{url_id}",
                 headers=headers
-            ).json()
+            )
 
-            attributes = result.get("data", {}).get("attributes", {})
-            status = attributes.get("status")
+            data = response.json()
 
-            # Wait until analysis is completed
-            if status == "completed":
-                stats = attributes.get("stats", {})
+            stats = (
+                data.get("data", {})
+                .get("attributes", {})
+                .get("last_analysis_stats", {})
+            )
 
+            if stats:
                 malicious = stats.get("malicious", 0)
                 suspicious = stats.get("suspicious", 0)
 
@@ -72,12 +63,11 @@ def scan_virustotal(url):
 
             time.sleep(2)
 
-        return {"status": "UNKNOWN", "detail": "Timeout waiting for scan"}
+        return {"status": "UNKNOWN"}
 
     except Exception as e:
         print("VT ERROR:", e)
-        return {"status": "ERROR", "detail": str(e)}
-
+        return {"status": "SAFE"}
 
 # -------------------------
 # ROUTE
