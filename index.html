@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SafeLink Scanner</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            padding: 40px;
+        }
+
+        input[type="text"] {
+            width: 350px;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            color: white;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .safe {
+            background: green;
+        }
+
+        .malicious {
+            background: red;
+        }
+
+        .blink {
+            animation: blinkAnim 0.7s infinite;
+        }
+
+        @keyframes blinkAnim {
+            50% { opacity: 0; }
+        }
+
+        .box {
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #777;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>🔍 SafeLink - URL Analyzer</h1>
+
+    <form method="POST">
+        <input type="text" name="url" placeholder="Enter URL here..." required>
+        <button type="submit">Scan URL</button>
+    </form>
+
+    {% if result %}
+    <div class="box">
+        <h2>Scan Results</h2>
+
+        <p><b>URL:</b> {{ result.url }}</p>
+        <p><b>Domain:</b> {{ result.domain }}</p>
+        <p><b>Domain Age:</b> {{ result.age }} days</p>
+
+        <h3>VirusTotal Result:</h3>
+
+        {% if result.vt.error %}
+            <span class="badge malicious blink">Scan Error</span>
+
+        {% else %}
+            {% if result.vt.malicious > 0 %}
+                <span class="badge malicious blink">Malicious</span>
+            {% else %}
+                <span class="badge safe">Safe</span>
+            {% endif %}
+
+            <p><b>Malicious:</b> {{ result.vt.malicious }}</p>
+            <p><b>Suspicious:</b> {{ result.vt.suspicious }}</p>
+            <p><b>Harmless:</b> {{ result.vt.harmless }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</body>
+</html>
