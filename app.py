@@ -7,7 +7,7 @@ import time
 
 app = Flask(__name__)
 
-VT_API_KEY = "YOUR_API_KEY"
+VT_API_KEY = "5efaa28db3c2aa83e646022663fe6d7f9b758351fbc96cc67391b2eb5a070030"
 VT_URL = "https://www.virustotal.com/api/v3/urls"
 
 
