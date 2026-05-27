@@ -22,13 +22,16 @@
     <p><b>Score:</b> {{ result.vt.score }}/100</p>
 
     {% if result.vt.status == "MALICIOUS" %}
-        <p class="danger">🔴 MALICIOUS</p>
+        <p style="color:red;font-weight:bold;">🔴 MALICIOUS</p>
+
     {% elif result.vt.status == "SUSPICIOUS" %}
-        <p style="color:orange;">⚠ SUSPICIOUS</p>
+        <p style="color:orange;font-weight:bold;">⚠ SUSPICIOUS</p>
+
     {% elif result.vt.status == "SAFE" %}
-        <p class="safe">🟢 SAFE</p>
+        <p style="color:green;font-weight:bold;">🟢 SAFE</p>
+
     {% else %}
-        <p style="color:gray;">UNKNOWN</p>
+        <p style="color:gray;">❓ UNKNOWN</p>
     {% endif %}
 </div>
 {% endif %}

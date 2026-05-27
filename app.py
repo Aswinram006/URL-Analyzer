@@ -3,10 +3,11 @@ import requests
 import whois
 from datetime import datetime
 from urllib.parse import urlparse
+import time
 
 app = Flask(__name__)
 
-VT_API_KEY = "5efaa28db3c2aa83e646022663fe6d7f9b758351fbc96cc67391b2eb5a070030"
+VT_API_KEY = "YOUR_API_KEY"
 VT_URL = "https://www.virustotal.com/api/v3/urls"
 
 
@@ -21,7 +22,7 @@ def extract_domain(url):
 
 
 # -------------------------
-# WHOIS (safe)
+# WHOIS
 # -------------------------
 def get_domain_age(domain):
     try:
@@ -43,13 +44,13 @@ def get_domain_age(domain):
 
 
 # -------------------------
-# FIXED VirusTotal Logic (IMPORTANT)
+# FIXED VIRUSTOTAL (WITH WAIT + RETRY)
 # -------------------------
 def scan_virustotal(url):
     try:
         headers = {"x-apikey": VT_API_KEY}
 
-        # Step 1: Submit URL
+        # STEP 1: Submit URL
         submit = requests.post(VT_URL, headers=headers, data={"url": url})
         data = submit.json()
 
@@ -58,44 +59,50 @@ def scan_virustotal(url):
 
         analysis_id = data["data"]["id"]
 
-        # Step 2: Get results
-        result_url = f"{VT_URL}/{analysis_id}"
-        result = requests.get(result_url, headers=headers).json()
+        # STEP 2: WAIT FOR ANALYSIS (IMPORTANT FIX)
+        analysis_url = f"{VT_URL}/{analysis_id}"
 
-        stats = result.get("data", {}).get("attributes", {}).get("stats", {})
+        stats = None
+
+        # retry 5 times (VirusTotal delay fix)
+        for i in range(5):
+            result = requests.get(analysis_url, headers=headers).json()
+            stats = result.get("data", {}).get("attributes", {}).get("stats", {})
+
+            if stats:
+                break
+
+            time.sleep(2)  # wait for VT processing
+
+        if not stats:
+            return {"status": "UNKNOWN", "score": 50}
 
         malicious = stats.get("malicious", 0)
         suspicious = stats.get("suspicious", 0)
+        harmless = stats.get("harmless", 0)
 
-        total = sum(stats.values()) if stats else 0
-
-        # 🔥 REAL DECISION LOGIC
+        # -------------------------
+        # FINAL DECISION LOGIC
+        # -------------------------
         if malicious > 0:
-            status = "MALICIOUS"
-            score = 100
-        elif suspicious > 0:
-            status = "SUSPICIOUS"
-            score = 60
-        elif total == 0:
-            status = "UNKNOWN"
-            score = 50
-        else:
-            status = "SAFE"
-            score = 10
+            return {"status": "MALICIOUS", "score": 100}
 
-        return {
-            "status": status,
-            "score": score,
-            "stats": stats
-        }
+        elif suspicious > 0:
+            return {"status": "SUSPICIOUS", "score": 60}
+
+        elif harmless > 0:
+            return {"status": "SAFE", "score": 10}
+
+        else:
+            return {"status": "UNKNOWN", "score": 50}
 
     except Exception as e:
         print("VT ERROR:", e)
-        return {"status": "ERROR", "score": 0, "stats": {}}
+        return {"status": "ERROR", "score": 0}
 
 
 # -------------------------
-# Route
+# ROUTE
 # -------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
