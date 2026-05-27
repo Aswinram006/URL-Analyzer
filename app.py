@@ -18,54 +18,65 @@ def extract_domain(url):
     try:
         return urlparse(url).netloc
     except:
-        return "Invalid"
+        return "Invalid URL"
 
 
 # -------------------------
-# FIXED VIRUSTOTAL LOGIC
+# VirusTotal Scan (FIXED)
 # -------------------------
 def scan_virustotal(url):
     try:
         headers = {"x-apikey": VT_API_KEY}
 
-        # 🔥 Step 1: encode URL properly
-        url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
+        # Encode URL (required by VirusTotal)
+        encoded_url = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
 
         # Submit URL
-        submit = requests.post(VT_SUBMIT_URL, headers=headers, json={"url": url})
-        data = submit.json()
+        response = requests.post(
+            VT_SUBMIT_URL,
+            headers=headers,
+            data={"url": url}
+        )
+
+        data = response.json()
 
         if "data" not in data:
-            return {"status": "SAFE"}
+            return {"status": "ERROR", "detail": "VirusTotal submission failed"}
 
         analysis_id = data["data"]["id"]
 
-        # 🔥 Step 2: wait for processing
+        # Polling for result
         for _ in range(10):
-            result = requests.get(f"{VT_ANALYSIS_URL}/{analysis_id}", headers=headers).json()
+            result = requests.get(
+                f"{VT_ANALYSIS_URL}/{analysis_id}",
+                headers=headers
+            ).json()
 
-            stats = result.get("data", {}).get("attributes", {}).get("stats", {})
+            attributes = result.get("data", {}).get("attributes", {})
+            status = attributes.get("status")
 
-            if stats:
-                break
+            # Wait until analysis is completed
+            if status == "completed":
+                stats = attributes.get("stats", {})
+
+                malicious = stats.get("malicious", 0)
+                suspicious = stats.get("suspicious", 0)
+
+                if malicious > 0:
+                    return {"status": "MALICIOUS"}
+
+                if suspicious > 0:
+                    return {"status": "SUSPICIOUS"}
+
+                return {"status": "SAFE"}
 
             time.sleep(2)
 
-        malicious = stats.get("malicious", 0)
-        suspicious = stats.get("suspicious", 0)
-
-        # 🔥 FINAL DECISION
-        if malicious > 0:
-            return {"status": "MALICIOUS"}
-
-        if suspicious > 0:
-            return {"status": "MALICIOUS"}
-
-        return {"status": "SAFE"}
+        return {"status": "UNKNOWN", "detail": "Timeout waiting for scan"}
 
     except Exception as e:
         print("VT ERROR:", e)
-        return {"status": "SAFE"}
+        return {"status": "ERROR", "detail": str(e)}
 
 
 # -------------------------
@@ -78,12 +89,12 @@ def index():
     if request.method == "POST":
         url = request.form.get("url")
 
-        vt = scan_virustotal(url)
+        vt_result = scan_virustotal(url)
 
         result = {
             "url": url,
             "domain": extract_domain(url),
-            "vt": vt
+            "vt": vt_result
         }
 
     return render_template("index.html", result=result)
