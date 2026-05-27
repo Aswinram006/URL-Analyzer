@@ -6,54 +6,88 @@ from urllib.parse import urlparse
 
 app = Flask(__name__)
 
-VT_API_KEY = "5efaa28db3c2aa83e646022663fe6d7f9b758351fbc96cc67391b2eb5a070030"
+VT_API_KEY = "YOUR_VIRUSTOTAL_API_KEY"
 VT_URL = "https://www.virustotal.com/api/v3/urls"
 
-def extract_domain(url):
-    parsed = urlparse(url)
-    return parsed.netloc
 
+# -------------------------
+# Extract domain
+# -------------------------
+def extract_domain(url):
+    try:
+        return urlparse(url).netloc
+    except:
+        return "Invalid URL"
+
+
+# -------------------------
+# Domain age (SAFE)
+# -------------------------
 def get_domain_age(domain):
     try:
-        w = whois.whois(domain)
-        creation = w.creation_date
+        import whois
+
+        data = whois.whois(domain)
+        creation = data.creation_date
 
         if isinstance(creation, list):
             creation = creation[0]
 
-        age_days = (datetime.now() - creation).days
-        return age_days
-    except:
+        if not creation:
+            return "Unknown"
+
+        return (datetime.now() - creation).days
+
+    except Exception as e:
+        print("WHOIS ERROR:", e)
         return "Unknown"
 
-def virustotal_scan(url):
-    headers = {"x-apikey": VT_API_KEY}
 
-    # URL encode + scan request
-    resp = requests.post(VT_URL, headers=headers, data={"url": url})
-    if resp.status_code != 200:
-        return "Error scanning"
+# -------------------------
+# VirusTotal (SAFE VERSION)
+# -------------------------
+def scan_virustotal(url):
+    try:
+        headers = {"x-apikey": VT_API_KEY}
 
-    scan_id = resp.json()["data"]["id"]
+        response = requests.post(VT_URL, headers=headers, data={"url": url})
+        result = response.json()
 
-    # Fetch results
-    analysis_url = f"{VT_URL}/{scan_id}"
-    result = requests.get(analysis_url, headers=headers).json()
+        if "data" not in result:
+            return {"error": "VT failed"}
 
-    stats = result["data"]["attributes"]["stats"]
-    malicious = stats.get("malicious", 0)
+        analysis_id = result["data"]["id"]
 
-    return "Malicious" if malicious > 0 else "Safe"
+        fetch_url = f"{VT_URL}/{analysis_id}"
+        analysis = requests.get(fetch_url, headers=headers).json()
 
+        stats = analysis.get("data", {}).get("attributes", {}).get("stats", {})
+
+        malicious = stats.get("malicious", 0)
+
+        return {
+            "status": "MALICIOUS" if malicious > 0 else "SAFE",
+            "stats": stats
+        }
+
+    except Exception as e:
+        print("VT ERROR:", e)
+        return {"status": "ERROR", "stats": {}}
+
+
+# -------------------------
+# ROUTE
+# -------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = None
 
     if request.method == "POST":
-        url = request.form["url"]
+        url = request.form.get("url")
+
         domain = extract_domain(url)
         age = get_domain_age(domain)
-        vt = virustotal_scan(url)
+        vt = scan_virustotal(url)
 
         result = {
             "url": url,
@@ -64,5 +98,9 @@ def index():
 
     return render_template("index.html", result=result)
 
+
+# -------------------------
+# RUN
+# -------------------------
 if __name__ == "__main__":
     app.run(debug=True)

@@ -6,27 +6,27 @@
 </head>
 <body>
 
-<h2>🔍 URL Analyzer</h2>
+<h1>🔍 URL Analyzer</h1>
 
 <form method="POST">
-    <input type="text" name="url" placeholder="Enter any URL" required>
+    <input type="text" name="url" placeholder="Enter URL" required>
     <button type="submit">Analyze</button>
 </form>
 
 {% if result %}
 <div class="box">
-    <h3>RESULTS</h3>
     <p><b>URL:</b> {{ result.url }}</p>
     <p><b>Domain:</b> {{ result.domain }}</p>
     <p><b>Domain Age:</b> {{ result.age }} days</p>
 
-    <p><b>Status:</b>
-        {% if result.vt == "Safe" %}
-            <span class="safe">🟢 SAFE</span>
-        {% else %}
-            <span class="malicious">🔴 MALICIOUS</span>
-        {% endif %}
-    </p>
+    {% if result.vt.status == "SAFE" %}
+        <p class="safe">🟢 SAFE</p>
+    {% elif result.vt.status == "MALICIOUS" %}
+        <p class="danger">🔴 MALICIOUS</p>
+    {% else %}
+        <p class="error">⚠ ERROR</p>
+    {% endif %}
+
 </div>
 {% endif %}
 
