@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>URL Analyzer</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<h2>🔍 URL Analyzer</h2>
+
+<form method="POST">
+    <input type="text" name="url" placeholder="Enter any URL" required>
+    <button type="submit">Analyze</button>
+</form>
+
+{% if result %}
+<div class="box">
+    <h3>RESULTS</h3>
+    <p><b>URL:</b> {{ result.url }}</p>
+    <p><b>Domain:</b> {{ result.domain }}</p>
+    <p><b>Domain Age:</b> {{ result.age }} days</p>
+
+    <p><b>Status:</b>
+        {% if result.vt == "Safe" %}
+            <span class="safe">🟢 SAFE</span>
+        {% else %}
+            <span class="malicious">🔴 MALICIOUS</span>
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+
+</body>
+</html>

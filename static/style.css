@@ -1,0 +1,43 @@
+body {
+    font-family: Arial;
+    text-align: center;
+    padding: 40px;
+    background: #fafafa;
+}
+
+input {
+    padding: 10px;
+    width: 300px;
+}
+
+button {
+    padding: 10px 20px;
+    background: black;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.box {
+    background: white;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 10px;
+    display: inline-block;
+    text-align: left;
+}
+
+.safe {
+    color: green;
+    font-weight: bold;
+}
+
+.malicious {
+    color: red;
+    font-weight: bold;
+    animation: blink 0.5s infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
