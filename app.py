@@ -17,18 +17,18 @@ def extract_domain(url):
     try:
         return urlparse(url).netloc
     except:
-        return "Invalid URL"
+        return "Invalid"
 
 
 # -------------------------
-# Domain age (SAFE)
+# WHOIS (safe)
 # -------------------------
 def get_domain_age(domain):
     try:
         import whois
 
-        data = whois.whois(domain)
-        creation = data.creation_date
+        w = whois.whois(domain)
+        creation = w.creation_date
 
         if isinstance(creation, list):
             creation = creation[0]
@@ -38,45 +38,64 @@ def get_domain_age(domain):
 
         return (datetime.now() - creation).days
 
-    except Exception as e:
-        print("WHOIS ERROR:", e)
+    except:
         return "Unknown"
 
 
 # -------------------------
-# VirusTotal (SAFE VERSION)
+# FIXED VirusTotal Logic (IMPORTANT)
 # -------------------------
 def scan_virustotal(url):
     try:
         headers = {"x-apikey": VT_API_KEY}
 
-        response = requests.post(VT_URL, headers=headers, data={"url": url})
-        result = response.json()
+        # Step 1: Submit URL
+        submit = requests.post(VT_URL, headers=headers, data={"url": url})
+        data = submit.json()
 
-        if "data" not in result:
-            return {"error": "VT failed"}
+        if "data" not in data:
+            return {"status": "ERROR", "score": 0}
 
-        analysis_id = result["data"]["id"]
+        analysis_id = data["data"]["id"]
 
-        fetch_url = f"{VT_URL}/{analysis_id}"
-        analysis = requests.get(fetch_url, headers=headers).json()
+        # Step 2: Get results
+        result_url = f"{VT_URL}/{analysis_id}"
+        result = requests.get(result_url, headers=headers).json()
 
-        stats = analysis.get("data", {}).get("attributes", {}).get("stats", {})
+        stats = result.get("data", {}).get("attributes", {}).get("stats", {})
 
         malicious = stats.get("malicious", 0)
+        suspicious = stats.get("suspicious", 0)
+
+        total = sum(stats.values()) if stats else 0
+
+        # 🔥 REAL DECISION LOGIC
+        if malicious > 0:
+            status = "MALICIOUS"
+            score = 100
+        elif suspicious > 0:
+            status = "SUSPICIOUS"
+            score = 60
+        elif total == 0:
+            status = "UNKNOWN"
+            score = 50
+        else:
+            status = "SAFE"
+            score = 10
 
         return {
-            "status": "MALICIOUS" if malicious > 0 else "SAFE",
+            "status": status,
+            "score": score,
             "stats": stats
         }
 
     except Exception as e:
         print("VT ERROR:", e)
-        return {"status": "ERROR", "stats": {}}
+        return {"status": "ERROR", "score": 0, "stats": {}}
 
 
 # -------------------------
-# ROUTE
+# Route
 # -------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -99,8 +118,5 @@ def index():
     return render_template("index.html", result=result)
 
 
-# -------------------------
-# RUN
-# -------------------------
 if __name__ == "__main__":
     app.run(debug=True)
